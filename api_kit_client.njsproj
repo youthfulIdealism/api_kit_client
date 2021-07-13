@@ -25,6 +25,7 @@
     <Content Include="src\index.ts">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="test\security_test.js" />
     <Content Include="test\test.js">
       <SubType>Code</SubType>
     </Content>

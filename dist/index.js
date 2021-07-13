@@ -2,12 +2,6 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-var got = require('got');
-
-function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
-
-var got__default = /*#__PURE__*/_interopDefaultLegacy(got);
-
 class Query {
     typename;
     query_params;
@@ -131,36 +125,79 @@ class CollectionResponse {
     }
 }
 
+//import got from 'got';
 class ApiKitClient {
     url;
-    constructor(url) {
+    ky_or_got;
+    http_lib;
+    _auth_token;
+    constructor(url, http_lib, ky_or_got, auth_token) {
         if (!url.endsWith('/')) {
             url = url + '/';
         }
         this.url = url;
+        this.ky_or_got = ky_or_got;
+        this.http_lib = http_lib;
+        this._auth_token = auth_token;
     }
     query(typename) {
         return new Query(typename, this);
     }
     async _get(query) {
-        let result = await got__default['default'].get(`${this.url}api/${query.typename}`, { searchParams: query.query_params }).json();
+        let result = await this.ky_or_got.get(`${this.url}api/${query.typename}`, { searchParams: query.query_params, headers: this._gen_auth_header() }).json();
         return new CollectionResponse(this, query, result);
     }
     async get(typename, id) {
-        let result = await got__default['default'](`/${this.url}api/${typename}/${id}`).json();
+        let result = await this.ky_or_got.get(`/${this.url}api/${typename}/${id}`, { headers: this._gen_auth_header() }).json();
         return new InstanceResponse(result.data, this, typename);
     }
     async post(typename, data) {
-        let result = await got__default['default'].post(`${this.url}api/${typename}`, { json: data }).json();
+        let result = await this.ky_or_got.post(`${this.url}api/${typename}`, this._gen_ky_got_params(data)).json();
         return new InstanceResponse(result.data, this, typename);
     }
     async put(typename, id, data) {
-        let result = await got__default['default'].put(`${this.url}api/${typename}/${id}`, { json: data }).json();
+        let result = await this.ky_or_got.put(`${this.url}api/${typename}/${id}`, this._gen_ky_got_params(data)).json();
         return new InstanceResponse(result.data, this, typename);
     }
     async delete(typename, id) {
-        let result = await got__default['default'].delete(`${this.url}api/${typename}/${id}`).json();
+        let result = await this.ky_or_got.delete(`${this.url}api/${typename}/${id}`).json();
         return new InstanceResponse(result.data, this, typename);
+    }
+    async create_user(username, password) {
+        let result = (await this.ky_or_got.post(`${this.url}api/user`, this._gen_ky_got_params({ username: username, password: password })).json());
+        return result.data;
+    }
+    async create_user_and_log_in(username, password) {
+        let result = await this.create_user(username, password);
+        return {
+            user: result,
+            token: await this.login(username, password)
+        };
+    }
+    async login(username, password) {
+        let result = (await this.ky_or_got.post(`${this.url}api/login`, this._gen_ky_got_params({ username: username, password: password })).json());
+        let token = result.token;
+        this._auth_token = token;
+        return token;
+    }
+    async set_token(token) {
+        this._auth_token = token;
+    }
+    _gen_ky_got_params(body) {
+        if (this.http_lib === 'ky') {
+            return { json: body, headers: this._gen_auth_header() };
+        }
+        else if (this.http_lib === 'got') {
+            return { json: body, headers: this._gen_auth_header() };
+        }
+    }
+    _gen_auth_header() {
+        let headers = {};
+        // @ts-ignore
+        if (this._auth_token) {
+            headers.Authorization = 'BEARER ' + this._auth_token;
+        }
+        return headers;
     }
 }
 

@@ -1,11 +1,11 @@
 let express = require('express');
 let mongoose = require('mongoose');
-let api_kit = require('@liminalfunctions/api_kit');
+let api_kit = require('@liminalfunctions/api-kit');
 let api_kit_client = require('../dist/index.js');
 let express_asyncify = require('express-asyncify');
 let assert = require('assert');
 let Joi = require('joi')
-
+let got = require('got');
 
 
 
@@ -14,7 +14,7 @@ describe('basic REST functionality', function () {
     let server;
     let database;
     let ApiKitClient = api_kit_client.ApiKitClient;
-    let api = new ApiKitClient('http://localhost:9000');
+    let api = new ApiKitClient('http://localhost:9000', 'got', got);
 
     let datas = [
         {
@@ -54,7 +54,16 @@ describe('basic REST functionality', function () {
             name: Joi.string(),
             ordinal: Joi.number().meta({ mongoose: { index: true } }),
             date_published: Joi.date().meta({ mongoose: { index: true } }),
-        }), { name: 'database_type' });
+        }), {
+            name: 'database_type',
+                security: {
+                    public: {
+                        read: true,
+                        write: true,
+                        delete: true,
+                    }
+                }
+        });
         server = app.listen('9000');
     })
 
@@ -159,6 +168,7 @@ describe('basic REST functionality', function () {
             let instances = await api.query('database_type').get();
             let responses = [];
             for (let instance of instances.data) {
+                //console.log(Object.assign({}, instance.data, { ordinal: instance.data.ordinal + 1 }))
                 responses.push(await instance.put(Object.assign({}, instance.data, { ordinal: instance.data.ordinal + 1 })));
             }
 
